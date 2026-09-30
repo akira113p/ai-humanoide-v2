@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel do direct</title>
+<style>
+:root {
+  --fundo: #0a0a0a;
+  --cartao: #161616;
+  --cartao-2: #1c1c1c;
+  --borda: #262626;
+  --borda-2: #333;
+  --texto: #ededed;
+  --texto-2: #a3a3a3;
+  --texto-3: #6b6b6b;
+  --chip: #d4d4d4;
+  --laranja: #f59e0b;
+  --verde: #2dd4bf;
+  --vermelho: #f87171;
+  --cinza: #9ca3af;
+  --azul: #38bdf8;
+  --sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--fundo); color: var(--texto); font: 14px/1.45 var(--sans); overflow: hidden; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.oculto { display: none !important; }
+
+/* barra do topo */
+.topo { height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid var(--borda); }
+.marca { font-family: var(--mono); font-size: 13px; color: var(--texto-2); }
+.marca b { color: var(--texto); font-weight: 600; }
+.espaco { flex: 1; }
+.status { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--texto-2); }
+.ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--cinza); flex: none; }
+.ponto.halo { box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 14%, transparent); }
+.st-entrando { color: var(--laranja); } .st-entrando .ponto { background: var(--laranja); }
+.st-online { color: var(--azul); } .st-online .ponto { background: var(--azul); }
+.st-pausa { color: var(--laranja); } .st-pausa .ponto { background: var(--laranja); }
+.st-erro { color: var(--vermelho); } .st-erro .ponto { background: var(--vermelho); }
+.st-offline { color: var(--cinza); } .st-offline .ponto { background: var(--cinza); }
+.status .rotulo { color: var(--texto-2); }
+.aviso { font-size: 12px; color: var(--texto-3); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn { border: 1px solid var(--borda-2); background: var(--fundo); border-radius: 10px; padding: 7px 14px; font-weight: 600; font-size: 13px; }
+.btn:hover { background: var(--cartao-2); }
+.btn.claro { background: #ececec; color: #0a0a0a; border-color: #ececec; }
+.btn.claro:hover { background: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+/* corpo */
+.corpo { height: calc(100% - 56px); display: grid; grid-template-columns: 320px 1fr; gap: 20px; padding: 20px; }
+.lateral { display: flex; flex-direction: column; min-height: 0; }
+.lateral h2 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
+.sub { color: var(--texto-3); font-size: 12px; margin-bottom: 12px; }
+.busca { width: 100%; background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; padding: 8px 12px; outline: none; margin-bottom: 12px; }
+.busca:focus { border-color: var(--borda-2); }
+.lista { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; }
+.conversa { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%; background: var(--cartao); border: 1px solid var(--borda); border-radius: 12px; padding: 12px; transition: border-color .15s, background .15s; }
+.conversa:hover { border-color: var(--borda-2); }
+.conversa.ativa { border-color: #4a4a4a; background: var(--cartao-2); }
+.conversa .info { flex: 1; min-width: 0; }
+.conversa .linha1 { display: flex; gap: 8px; align-items: baseline; }
+.conversa .nome { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.conversa .hora { font-family: var(--mono); font-size: 11px; color: var(--texto-3); }
+.conversa .previa { color: var(--texto-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conversa.nova .previa { color: var(--texto); }
+.conversa .nao-lida { width: 8px; height: 8px; border-radius: 50%; background: var(--azul); flex: none; }
+.vazio { color: var(--texto-3); font-size: 13px; padding: 24px 4px; }
+
+/* rostinhos determinísticos (mesmo nome, mesmo rosto) */
+.rosto { display: inline-block; width: 34px; height: 34px; flex: none; position: relative; }
+.rosto::before, .rosto::after { content: ""; position: absolute; top: 38%; width: 3px; height: 6px; border-radius: 2px; background: #111; }
+.rosto::before { left: 36%; } .rosto::after { right: 36%; }
+.rosto.p { width: 26px; height: 26px; border: 2px solid var(--cartao); }
+.rosto.p::before, .rosto.p::after { height: 4px; width: 2px; }
+
+/* visor */
+.visor { background: var(--cartao); border: 1px solid var(--borda); border-radius: 14px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.cab { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--borda); min-height: 58px; }
+.cab .titulo { font-family: var(--mono); font-size: 14px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cab .titulo span { color: var(--texto-3); margin-right: 6px; }
+.voltar { display: none; background: none; border: 0; color: var(--texto-2); padding: 0 4px 0 0; font-size: 18px; }
+.pilha { display: flex; }
+.pilha > * { margin-left: -8px; }
+.pilha .mais { width: 26px; height: 26px; border-radius: 50%; background: #2a2a2a; border: 2px solid var(--cartao); font-size: 10px; color: var(--texto-2); display: grid; place-items: center; }
+.msgs { flex: 1; overflow-y: auto; padding: 16px 20px 8px; }
+.grupo { display: flex; gap: 14px; padding: 10px 0; }
+.grupo .col { flex: 1; min-width: 0; }
+.grupo .quem { display: flex; gap: 8px; align-items: baseline; margin-bottom: 2px; }
+.grupo .quem b { font-weight: 600; }
+.grupo .quem time { font-family: var(--mono); font-size: 11px; color: var(--texto-3); }
+.msg { position: relative; padding: 3px 64px 3px 0; color: var(--texto-2); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg:hover { background: #1a1a1a; }
+.msg .acao { position: absolute; right: 6px; top: 2px; opacity: 0; background: var(--cartao-2); border: 1px solid var(--borda-2); border-radius: 7px; font-size: 11px; padding: 2px 8px; color: var(--texto-2); }
+.msg:hover .acao, .msg .acao:focus { opacity: 1; }
+.msg.marcada { background: #1f2a33; }
+.msg.sistema { font-size: 12px; color: var(--texto-3); font-style: italic; }
+.cita { display: block; border-left: 2px solid var(--borda-2); padding: 1px 0 1px 10px; margin: 2px 0 4px; font-size: 12px; color: var(--texto-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cita b { color: var(--texto-2); font-weight: 600; }
+.reacoes { display: flex; gap: 4px; margin-top: 3px; }
+.reacoes span { background: var(--cartao-2); border: 1px solid var(--borda); border-radius: 999px; font-size: 12px; padding: 0 7px; }
+
+/* anexos */
+.anexo { display: flex; gap: 12px; max-width: 420px; margin: 4px 0; background: var(--fundo); border: 1px solid var(--borda); border-radius: 12px; padding: 10px; white-space: normal; }
+.anexo .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; background: var(--cartao-2); flex: none; }
+.anexo.reels .thumb, .anexo.story .thumb { height: 96px; width: 56px; }
+.anexo .txt { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.chip { display: inline-block; width: fit-content; align-self: flex-start; background: var(--chip); color: #111; font-size: 11px; font-weight: 600; border-radius: 6px; padding: 1px 8px; }
+.anexo .autor { color: var(--texto); font-weight: 600; font-size: 13px; }
+.anexo .leg { font-size: 12px; color: var(--texto-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.anexo a { color: var(--texto); font-size: 12px; text-decoration: none; }
+.anexo a:hover { text-decoration: underline; }
+.foto { display: block; max-width: 240px; max-height: 280px; border-radius: 10px; border: 1px solid var(--borda); margin: 4px 0; }
+audio { height: 32px; margin: 4px 0; max-width: 100%; }
+
+/* escrever */
+.escrever { border-top: 1px solid var(--borda); padding: 12px 16px; }
+.resp { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--texto-2); background: var(--cartao-2); border: 1px solid var(--borda); border-radius: 8px; padding: 6px 10px; margin-bottom: 8px; }
+.resp span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resp button { background: none; border: 0; color: var(--texto-3); font-size: 16px; line-height: 1; }
+.caixa { display: flex; gap: 10px; align-items: flex-end; }
+.caixa textarea { flex: 1; resize: none; background: var(--fundo); border: 1px solid var(--borda); border-radius: 10px; padding: 9px 12px; max-height: 140px; outline: none; }
+.caixa textarea:focus { border-color: var(--borda-2); }
+/* controles da IA (toggle das configuracoes rapidas) */
+.ia { display: flex; align-items: center; gap: 8px; }
+.chave { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--texto-2); background: none; border: 0; padding: 0; }
+.chave .trilho { width: 40px; height: 22px; border-radius: 999px; background: #262626; border: 1px solid var(--borda-2); position: relative; transition: background .15s; flex: none; }
+.chave .trilho::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #0a0a0a; border: 1px solid #3a3a3a; transition: transform .15s; }
+.chave.on { color: var(--texto); }
+.chave.on .trilho { background: #ececec; border-color: #ececec; }
+.chave.on .trilho::after { transform: translateX(18px); border-color: #0a0a0a; }
+.btn.peq { white-space: nowrap; padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+.sel { appearance: none; background: var(--fundo) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a3a3a3' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 9px center;
+  border: 1px solid var(--borda-2); border-radius: 8px; padding: 5px 26px 5px 10px; font-size: 12px; font-weight: 600; color: var(--texto); cursor: pointer; }
+.sel:hover { background-color: var(--cartao-2); }
+.vels { display: flex; flex-direction: column; gap: 6px; }
+.vel { display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%; background: var(--fundo); border: 1px solid var(--borda); border-radius: 10px; padding: 9px 12px; }
+.vel:hover { border-color: var(--borda-2); }
+.vel .bola { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--texto-3); flex: none; margin-top: 2px; }
+.vel.on { border-color: #4a4a4a; background: var(--cartao-2); }
+.vel.on .bola { border: 4px solid #ececec; }
+.vel b { font-size: 13px; }
+.vel .seg { font-family: var(--mono); font-size: 12px; color: var(--texto); margin-left: 6px; }
+.vel small { display: block; color: var(--texto-3); font-size: 12px; margin-top: 2px; }
+.digitando { display: flex; align-items: center; gap: 14px; padding: 6px 20px 12px; font-size: 12px; color: var(--texto-3); }
+.digitando .pontos::after { content: "..."; animation: pts 1.2s steps(4) infinite; display: inline-block; width: 1.2em; overflow: hidden; vertical-align: bottom; }
+@keyframes pts { from { width: 0; } to { width: 1.2em; } }
+@media (prefers-reduced-motion: reduce) { .digitando .pontos::after { animation: none; } }
+.selo { font-size: 10px; font-weight: 700; background: var(--chip); color: #111; border-radius: 5px; padding: 0 5px; flex: none; }
+.caixa-texto { width: 100%; min-height: 90px; resize: vertical; background: var(--fundo); border: 1px solid var(--borda); border-radius: 10px; padding: 9px 12px; outline: none; color: var(--texto); }
+.caixa-texto:focus { border-color: var(--borda-2); }
+.memoria { background: var(--fundo); border: 1px solid var(--borda); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--texto-2); white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+.linha-opcao { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.linha-opcao small { display: block; color: var(--texto-3); font-size: 12px; }
+.nada { flex: 1; display: grid; place-items: center; color: var(--texto-3); text-align: center; padding: 24px; }
+
+/* modal (Quick Settings) */
+.veu { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; padding: 16px; z-index: 10; }
+.modal { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); width: 100%; max-width: 480px; background: #111; border: 1px solid var(--borda); border-radius: 14px; overflow: hidden; }
+.modal .mcab { padding: 20px 20px 16px; border-bottom: 1px solid var(--borda); position: relative; }
+.modal h3 { margin: 0; font-size: 17px; display: flex; gap: 10px; align-items: center; }
+.modal .mcab p { margin: 6px 0 0; color: var(--texto-2); font-size: 13px; }
+.fechar { position: absolute; right: 16px; top: 18px; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--texto-2); background: none; color: var(--texto-2); font-size: 13px; line-height: 1; display: grid; place-items: center; }
+.modal .mcorpo { overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.abas { display: flex; gap: 6px; }
+.aba { border: 1px solid var(--borda); background: none; border-radius: 8px; padding: 5px 12px; font-size: 13px; color: var(--texto-2); }
+.aba.on { background: var(--cartao-2); color: var(--texto); border-color: var(--borda-2); }
+.campo { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--texto-2); }
+.campo input { background: var(--fundo); border: 1px solid var(--borda); border-radius: 10px; padding: 9px 12px; outline: none; color: var(--texto); }
+.campo input:focus { border-color: var(--borda-2); }
+.dica { font-size: 12px; color: var(--texto-3); margin: 0; }
+.linha-sep { border-top: 1px solid var(--borda); }
+.conta { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.modal .mrod { padding: 14px 20px; border-top: 1px solid var(--borda); display: flex; justify-content: flex-end; gap: 10px; background: #0f0f0f; }
+.erro-form { color: var(--vermelho); font-size: 12px; min-height: 16px; margin: 0; }
+
+@media (max-width: 760px) {
+  .corpo { grid-template-columns: 1fr; padding: 12px 16px; gap: 12px; }
+  .corpo.aberta .lateral { display: none; }
+  .corpo:not(.aberta) .visor { display: none; }
+  .voltar { display: block; }
+  .aviso { display: none; }
+  .topo { padding: 0 16px; gap: 10px; }
+  .msg { padding-right: 56px; }
+  .ia .rotulo-ia { display: none; }
+  .cab .titulo { flex: 1 1 50%; }
+  .ia { flex-basis: 100%; flex-wrap: wrap; }
+  .sel { order: 3; flex-basis: 100%; }
+  .cab { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="marca"><b>direct</b> / painel</div>
+  <div class="status st-entrando" id="status"><span class="ponto halo"></span><span class="rotulo" id="rotulo">Entrando</span></div>
+  <div class="aviso" id="aviso"></div>
+  <div class="espaco"></div>
+  <button class="btn" id="btn-conta">Conta</button>
+</header>
+
+<main class="corpo" id="corpo">
+  <aside class="lateral">
+    <h2>Conversas</h2>
+    <div class="sub" id="sub-lista">atualiza a cada ~20 s</div>
+    <input class="busca" id="busca" placeholder="Buscar conversa" autocomplete="off">
+    <div class="lista" id="lista"><div class="vazio">nenhuma conversa carregada</div></div>
+  </aside>
+
+  <section class="visor">
+    <div class="cab">
+      <button class="voltar" id="voltar" aria-label="Voltar">&larr;</button>
+      <div class="titulo" id="titulo"><span>#</span>direct</div>
+      <div class="pilha" id="pilha"></div>
+      <div class="ia oculto" id="ia">
+        <button class="chave" id="chave-ia" role="switch" aria-checked="false"><span class="trilho"></span><span class="rotulo-ia">IA</span></button>
+        <select class="sel" id="vel" aria-label="Velocidade de resposta da IA"></select>
+        <button class="btn peq" id="btn-puxar">Puxar assunto</button>
+        <button class="btn peq" id="btn-contexto">Contexto</button>
+      </div>
+    </div>
+    <div class="nada" id="nada">escolha uma conversa</div>
+    <div class="msgs oculto" id="msgs"></div>
+    <div class="digitando oculto" id="digitando"><span id="dig-rosto"></span><span id="dig-txt"></span></div>
+    <div class="escrever oculto" id="escrever">
+      <div class="resp oculto" id="resp"><span id="resp-txt"></span><button id="resp-x" aria-label="Cancelar resposta">&times;</button></div>
+      <div class="caixa">
+        <textarea id="texto" rows="1" maxlength="1000" placeholder="Mensagem (Enter envia, Shift+Enter quebra linha)"></textarea>
+        <button class="btn claro" id="btn-enviar">Enviar</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="veu oculto" id="veu">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-titulo">
+    <div class="mcab">
+      <h3 id="m-titulo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Conta do Instagram</h3>
+      <p>A sessao fica salva em sessao/; nao precisa entrar de novo.</p>
+      <button class="fechar" id="m-x" aria-label="Fechar">&times;</button>
+    </div>
+
+    <div class="mcorpo" id="m-logado">
+      <div class="conta"><span class="rosto" id="m-rosto"></span><div><b id="m-user"></b><div class="dica">sessao ativa neste computador</div></div></div>
+      <p class="dica">Sair apaga o arquivo de sessao. A conta continua logada nos outros aparelhos.</p>
+    </div>
+
+    <div class="mcorpo" id="m-entrar">
+      <div class="abas"><button class="aba on" data-aba="senha">Senha</button><button class="aba" data-aba="cookie">Cookie de sessao</button></div>
+      <div id="aba-senha">
+        <label class="campo">Usuario<input id="f-usuario" autocomplete="username" spellcheck="false"></label>
+        <label class="campo" style="margin-top:10px">Senha<input id="f-senha" type="password" autocomplete="current-password"></label>
+      </div>
+      <div id="aba-cookie" class="oculto">
+        <label class="campo">sessionid<input id="f-cookie" type="password" autocomplete="off" spellcheck="false"></label>
+        <p class="dica" style="margin-top:8px">No navegador logado em instagram.com: DevTools &rarr; Application &rarr; Cookies &rarr; sessionid.</p>
+      </div>
+      <div id="bloco-codigo" class="oculto">
+        <div class="linha-sep" style="margin-bottom:12px"></div>
+        <label class="campo"><span id="rot-codigo">Codigo de verificacao</span><input id="f-codigo" inputmode="numeric" autocomplete="one-time-code"></label>
+      </div>
+      <p class="erro-form" id="m-erro"></p>
+    </div>
+
+    <div class="mrod">
+      <button class="btn" id="m-fechar">Fechar</button>
+      <button class="btn" id="m-sair">Sair</button>
+      <button class="btn claro" id="m-ok">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="veu oculto" id="veu-ctx">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="c-titulo">
+    <div class="mcab">
+      <h3 id="c-titulo">Contexto</h3>
+      <p id="c-sub">O que a IA sabe desta pessoa antes de responder.</p>
+      <button class="fechar" id="c-x" aria-label="Fechar">&times;</button>
+    </div>
+    <div class="mcorpo">
+      <div class="linha-opcao"><div>IA responde nesta conversa<small>So responde o que chegar depois de ligar.</small></div>
+        <button class="chave" id="c-ativo" role="switch" aria-checked="false"><span class="trilho"></span></button></div>
+      <div class="linha-opcao"><div>E a pessoa da conversa original<small>Os exemplos da persona viram lembrancas com ela.</small></div>
+        <button class="chave" id="c-origem" role="switch" aria-checked="false"><span class="trilho"></span></button></div>
+      <div class="linha-sep"></div>
+      <label class="campo">Quem e essa pessoa (notas suas, vao para a IA)
+        <textarea class="caixa-texto" id="c-notas" maxlength="2000" placeholder="ex.: amigo da escola, gosta de futebol, voces brigaram mes passado"></textarea></label>
+      <div class="campo">Velocidade de resposta
+        <div class="vels" id="c-vels"></div>
+        <p class="dica" style="margin-top:4px">Fora isso: o tempo da IA pensar (varia com o modelo) e ate <span id="c-leitura">8</span> s para o painel perceber a msg nova.</p></div>
+      <div class="linha-sep"></div>
+      <div class="campo">Memoria das conversas anteriores <span class="dica" id="c-mem-info"></span>
+        <div class="memoria" id="c-mem">ainda sem memoria</div></div>
+      <p class="erro-form" id="c-erro"></p>
+    </div>
+    <div class="mrod">
+      <button class="btn" id="c-refazer">Refazer memoria</button>
+      <button class="btn" id="c-fechar">Fechar</button>
+      <button class="btn claro" id="c-salvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+// token da execução: vem no #t=..., some da barra de endereço
+let TOKEN = "";
+try { TOKEN = sessionStorage.getItem("token") || ""; } catch (e) {}
+const hashTok = new URLSearchParams(location.hash.slice(1)).get("t");
+if (hashTok) { TOKEN = hashTok; try { sessionStorage.setItem("token", TOKEN); } catch (e) {} history.replaceState(null, "", "/"); }
+
+async function api(caminho, corpo) {
+  const op = { headers: { "X-Token": TOKEN } };
+  if (corpo !== undefined) { op.method = "POST"; op.headers["Content-Type"] = "application/json"; op.body = JSON.stringify(corpo); }
+  const r = await fetch(caminho, op);
+  const d = await r.json().catch(() => ({ ok: false, erro: "resposta invalida" }));
+  if (!r.ok) throw new Error(d.erro || r.status);
+  return d;
+}
+const midia = (u) => "/api/midia?t=" + encodeURIComponent(TOKEN) + "&u=" + encodeURIComponent(u);
+
+function el(tag, cls, txt) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt !== undefined && txt !== null) e.textContent = txt;
+  return e;
+}
+
+// rostinho: cor e formato vêm do hash do nome
+const CORES = ["#a5d8ff", "#ffc4b2", "#c2b33c", "#d6e6ea", "#8d6e5f", "#b9f2c8", "#e3b5f5", "#f7d774", "#9fb4ff"];
+function hash(s) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.codePointAt(0), 16777619); return h >>> 0; }
+function rosto(nome, pequeno) {
+  const h = hash(nome || "?");
+  const e = el("span", "rosto" + (pequeno ? " p" : ""));
+  const r = (i) => 40 + ((h >> i) % 21);
+  e.style.background = CORES[h % CORES.length];
+  e.style.borderRadius = `${r(3)}% ${100 - r(3)}% ${r(7)}% ${100 - r(7)}% / ${r(11)}% ${r(15)}% ${100 - r(15)}% ${100 - r(11)}%`;
+  e.title = nome;
+  return e;
+}
+
+function hora(ts) {
+  const d = new Date(ts * 1000), hoje = new Date();
+  const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === hoje.toDateString() ? hm : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + hm;
+}
+
+const NOMES = { reels: "Reels", post: "Post", story: "Story", foto: "Foto", video: "Video", audio: "Audio", gif: "GIF",
+  figurinha: "Figurinha", link: "Link", perfil: "Perfil", indisponivel: "Indisponivel" };
+
+function resumoAnexo(a) {
+  if (!a || a.tipo === "sistema") return "";
+  return "[" + (NOMES[a.tipo] || a.tipo) + (a.autor ? " de @" + a.autor : "") + "]";
+}
+
+// ---------- estado ----------
+let estado = {}, conversas = [], abertaId = null, mensagens = [], respondendo = null, assinatura = "";
+const cacheMsgs = {};  // id -> mensagens: trocar de conversa desenha na hora, sem esperar o servidor
+const ROTULOS = { entrando: "Entrando", online: "Online", pausa: "Em pausa", erro: "Erro", offline: "Offline" };
+
+async function lerEstado() {
+  try { estado = await api("/api/estado"); } catch (e) { estado = { status: "erro", aviso: "painel parado ou token invalido (abra pelo link do terminal)" }; }
+  const s = estado.status || "offline";
+  $("status").className = "status st-" + s;
+  $("status").firstElementChild.className = "ponto" + (s === "online" || s === "entrando" ? " halo" : "");
+  let rot = ROTULOS[s] || s;
+  if (s === "pausa" && estado.pausa_ate) rot += " ate " + hora(estado.pausa_ate).slice(-5);
+  $("rotulo").textContent = rot;
+  const bot = estado.bot || {};
+  $("aviso").textContent = (estado.aviso || "") + (bot.aviso ? " · IA: " + bot.aviso : "");
+  mostrarIA();
+  if (estado.lidas_em) $("sub-lista").textContent = "lido as " + hora(estado.lidas_em).slice(-5) + " · a cada ~" + estado.intervalo + " s";
+  atualizarModal();
+  if (s === "offline" && !avisouLogin) { avisouLogin = true; abrirModal(); }
+}
+let avisouLogin = false;
+
+async function lerConversas() {
+  if (!["online", "pausa"].includes(estado.status)) return;
+  try { conversas = (await api("/api/conversas")).conversas; } catch (e) { return; }
+  desenharLista();
+  if (abertaId) lerMensagens();
+}
+
+function desenharLista() {
+  const filtro = $("busca").value.trim().toLowerCase();
+  const lista = $("lista");
+  lista.replaceChildren();
+  const vis = conversas.filter((c) => !filtro || c.titulo.toLowerCase().includes(filtro) || c.usuarios.join(" ").toLowerCase().includes(filtro));
+  if (!vis.length) { lista.append(el("div", "vazio", conversas.length ? "nada encontrado" : "nenhuma conversa carregada")); return; }
+  for (const c of vis) {
+    const b = el("button", "conversa" + (c.id === abertaId ? " ativa" : "") + (c.nao_lida ? " nova" : ""));
+    b.append(rosto(c.usuarios[0] || c.titulo));
+    const info = el("div", "info"), l1 = el("div", "linha1");
+    l1.append(el("span", "nome", c.titulo), el("span", "hora", c.atividade ? hora(c.atividade) : ""));
+    const u = c.ultima;
+    const prev = u ? (u.de_mim ? "voce: " : "") + (u.texto || resumoAnexo(u.anexo) || "") : "";
+    info.append(l1, el("div", "previa", prev));
+    b.append(info);
+    if (iaLigada(c.id)) b.append(el("span", "selo", "IA"));
+    if (c.nao_lida) b.append(el("span", "nao-lida"));
+    b.onclick = () => abrir(c.id);
+    lista.append(b);
+  }
+}
+
+async function abrir(id) {
+  if (abertaId !== id) { respondendo = null; mostrarResposta(); assinatura = ""; }
+  abertaId = id;
+  $("corpo").classList.add("aberta");
+  const c = conversas.find((x) => x.id === id) || { titulo: "?", usuarios: [] };
+  $("titulo").replaceChildren(el("span", "", "#"), document.createTextNode(c.titulo));
+  const pilha = $("pilha"); pilha.replaceChildren();
+  c.usuarios.slice(0, 4).forEach((u) => pilha.append(rosto(u, true)));
+  if (c.usuarios.length > 4) pilha.append(el("span", "mais", "+" + (c.usuarios.length - 4)));
+  $("nada").classList.add("oculto"); $("msgs").classList.remove("oculto"); $("escrever").classList.remove("oculto");
+  mostrarIA();
+  desenharLista();
+  if (!assinatura) {
+    if (cacheMsgs[id]) { mensagens = cacheMsgs[id]; desenharMensagens(); $("msgs").scrollTop = $("msgs").scrollHeight; }
+    else $("msgs").replaceChildren(el("div", "vazio", "carregando..."));
+  }
+  await lerMensagens();
+  $("texto").focus();
+}
+
+async function lerMensagens() {
+  const id = abertaId;
+  try {
+    const d = await api("/api/mensagens?id=" + encodeURIComponent(id));
+    cacheMsgs[id] = d.mensagens;
+    if (id !== abertaId) return;
+    mensagens = d.mensagens;
+  } catch (e) {
+    if (id === abertaId && !assinatura) $("msgs").replaceChildren(el("div", "vazio", "erro: " + e.message));
+    return;
+  }
+  const nova = id + ":" + mensagens.map((m) => m.id + (m.reacoes || []).join("")).join(",");
+  if (nova !== assinatura) { assinatura = nova; desenharMensagens(); }
+}
+
+function desenharMensagens() {
+  const box = $("msgs");
+  const noFim = box.scrollHeight - box.scrollTop - box.clientHeight < 80 || !box.childElementCount || box.firstChild.classList.contains("vazio");
+  box.replaceChildren();
+  let grupo = null, ult = null;
+  for (const m of mensagens) {
+    if (m.anexo && m.anexo.tipo === "sistema") {
+      box.append(el("div", "msg sistema", m.texto)); grupo = null; continue;
+    }
+    if (!grupo || !ult || ult.autor !== m.autor || m.hora - ult.hora > 300) {
+      grupo = el("div", "grupo");
+      const col = el("div", "col"), quem = el("div", "quem");
+      quem.append(el("b", "", m.autor), el("time", "", hora(m.hora)));
+      col.append(quem);
+      grupo.append(rosto(m.autor), col);
+      box.append(grupo);
+    }
+    grupo.lastChild.append(linhaMsg(m));
+    ult = m;
+  }
+  if (!mensagens.length) box.append(el("div", "vazio", "sem mensagens"));
+  if (noFim) box.scrollTop = box.scrollHeight;
+}
+
+function linhaMsg(m) {
+  const d = el("div", "msg");
+  d.dataset.id = m.id;
+  if (m.resposta_a) {
+    const r = m.resposta_a, c = el("span", "cita");
+    c.append(document.createTextNode("↳ "), el("b", "", r.autor), document.createTextNode(": " + (r.texto || resumoAnexo(r.anexo) || "mensagem")));
+    c.title = "ir para a mensagem respondida";
+    c.onclick = () => destacar(r.id);
+    d.append(c);
+  }
+  if (m.anexo) d.append(anexo(m.anexo));
+  if (m.texto) d.append(document.createTextNode(m.texto));
+  if (m.reacoes && m.reacoes.length) { const r = el("div", "reacoes"); m.reacoes.forEach((x) => r.append(el("span", "", x))); d.append(r); }
+  const b = el("button", "acao", "responder");
+  b.onclick = () => { respondendo = m; mostrarResposta(); $("texto").focus(); };
+  d.append(b);
+  return d;
+}
+
+// o CDN expira os links: imagem que falhar vira um bloco neutro do mesmo tamanho
+function imagem(url, cls, alt) {
+  const i = el("img", cls);
+  i.alt = alt; i.loading = "lazy"; i.src = midia(url);
+  i.onerror = () => i.replaceWith(el("div", cls === "foto" ? "chip" : "thumb", cls === "foto" ? "Foto indisponivel" : ""));
+  return i;
+}
+
+function anexo(a) {
+  if (a.tipo === "foto" || a.tipo === "gif" || a.tipo === "figurinha" || (a.tipo === "video" && a.thumb)) {
+    const w = el("div");
+    if (a.thumb) w.append(imagem(a.thumb, "foto", a.tipo));
+    if (a.tipo === "video" || a.legenda) w.append(el("div", "chip", (NOMES[a.tipo] || a.tipo) + (a.legenda ? " · " + a.legenda : "")));
+    return w;
+  }
+  if (a.tipo === "audio") {
+    const w = el("div");
+    if (a.url) { const au = el("audio"); au.controls = true; au.preload = "none"; au.src = midia(a.url); w.append(au); }
+    else w.append(el("span", "chip", "Audio " + a.legenda));
+    return w;
+  }
+  const c = el("div", "anexo " + a.tipo);
+  if (a.thumb) c.append(imagem(a.thumb, "thumb", ""));
+  const t = el("div", "txt");
+  t.append(el("span", "chip", (a.acao ? a.acao + " ao " : "") + (NOMES[a.tipo] || a.tipo)));
+  if (a.autor) t.append(el("span", "autor", "@" + a.autor));
+  if (a.legenda) t.append(el("span", "leg", a.legenda));
+  if (a.url && /^https:\/\/(www\.)?instagram\.com\//.test(a.url) || (a.url && a.tipo === "link" && /^https?:\/\//.test(a.url))) {
+    const l = el("a", "", "abrir ↗"); l.href = a.url; l.target = "_blank"; l.rel = "noopener noreferrer"; t.append(l);
+  }
+  c.append(t);
+  return c;
+}
+
+function destacar(id) {
+  const alvo = $("msgs").querySelector(`.msg[data-id="${CSS.escape(id)}"]`);
+  if (!alvo) return;
+  alvo.scrollIntoView({ block: "center", behavior: "smooth" });
+  alvo.classList.add("marcada");
+  setTimeout(() => alvo.classList.remove("marcada"), 1600);
+}
+
+function mostrarResposta() {
+  $("resp").classList.toggle("oculto", !respondendo);
+  if (respondendo) $("resp-txt").textContent = "respondendo a " + respondendo.autor + ": " + (respondendo.texto || resumoAnexo(respondendo.anexo) || "mensagem");
+}
+$("resp-x").onclick = () => { respondendo = null; mostrarResposta(); };
+
+async function enviar() {
+  const txt = $("texto").value.trim();
+  if (!txt || !abertaId) return;
+  $("btn-enviar").disabled = true;
+  try {
+    const corpo = { id: abertaId, texto: txt };
+    if (respondendo) corpo.responder_a = { id: respondendo.id, ctx: respondendo.ctx };
+    const d = await api("/api/enviar", corpo);
+    $("texto").value = ""; ajustar();
+    respondendo = null; mostrarResposta();
+    mensagens = d.mensagens; assinatura = ""; desenharMensagens();
+    $("msgs").scrollTop = $("msgs").scrollHeight;
+  } catch (e) {
+    $("aviso").textContent = "nao enviou: " + e.message;
+  } finally { $("btn-enviar").disabled = false; }
+}
+$("btn-enviar").onclick = enviar;
+$("texto").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } });
+function ajustar() { const t = $("texto"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 140) + "px"; }
+$("texto").addEventListener("input", ajustar);
+$("busca").addEventListener("input", desenharLista);
+$("voltar").onclick = () => { $("corpo").classList.remove("aberta"); };
+
+// ---------- IA ----------
+const FAZENDO = { pensando: "esta pensando", digitando: "esta digitando", lembrando: "esta lembrando da conversa", lendo: "esta lendo" };
+function iaLigada(id) { return ((estado.bot || {}).ativos || []).includes(id); }
+function marcar(b, on) { b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); }
+
+function mostrarIA() {
+  const bot = estado.bot || {};
+  const c = conversas.find((x) => x.id === abertaId);
+  const pode = !!(c && bot.persona && !c.grupo);
+  $("ia").classList.toggle("oculto", !pode);
+  if (!pode) { $("digitando").classList.add("oculto"); return; }
+  const on = iaLigada(abertaId);
+  marcar($("chave-ia"), on);
+  $("chave-ia").title = on ? "IA ligada: " + bot.persona + " responde sozinha" : "IA desligada";
+  desenharVel();
+  const fazendo = (bot.ocupadas || {})[abertaId];
+  $("btn-puxar").disabled = !on || !!fazendo || estado.status !== "online";
+  $("digitando").classList.toggle("oculto", !fazendo);
+  if (fazendo) {
+    $("dig-rosto").replaceChildren(rosto("voce", true));
+    $("dig-txt").replaceChildren(document.createTextNode(bot.persona + " " + (FAZENDO[fazendo] || fazendo)), el("span", "pontos"));
+  }
+}
+
+async function mudarContato(campos) {
+  const d = await api("/api/contato", Object.assign({ id: abertaId }, campos));
+  const ativos = new Set((estado.bot || {}).ativos || []);
+  d.contato.ativo ? ativos.add(abertaId) : ativos.delete(abertaId);
+  if (estado.bot) estado.bot.ativos = [...ativos];
+  mostrarIA(); desenharLista();
+  return d.contato;
+}
+$("chave-ia").onclick = async () => {
+  try { await mudarContato({ ativo: !iaLigada(abertaId) }); } catch (e) { $("aviso").textContent = "IA: " + e.message; }
+};
+$("btn-puxar").onclick = async () => {
+  $("btn-puxar").disabled = true;
+  try { await api("/api/puxar", { id: abertaId }); await lerEstado(); } catch (e) { $("aviso").textContent = "IA: " + e.message; $("btn-puxar").disabled = false; }
+};
+
+// velocidade (segundos vêm do servidor, calculados das medidas da persona)
+const num = (x) => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+const faixa = (par) => par[0] === par[1] ? "~" + num(par[0]) + " s" : num(par[0]) + "–" + num(par[1]) + " s";
+function detalheVel(t) {
+  return "espera " + faixa(t.espera) + " voce parar de digitar · ve a msg em " + faixa(t.visto) + " · " + faixa(t.por_msg) + " por msg digitada";
+}
+function velDe(id) { return ((estado.bot || {}).velocidades || {})[id] || "normal"; }
+function desenharVel() {
+  const tempos = (estado.bot || {}).tempos || [], sel = $("vel"), atual = velDe(abertaId);
+  const chave = tempos.map((t) => t.id + t.total).join() + atual;
+  if (sel.dataset.chave === chave) return;
+  sel.dataset.chave = chave;
+  sel.replaceChildren(...tempos.map((t) => { const o = el("option", "", t.rotulo + " · " + faixa(t.total)); o.value = t.id; return o; }));
+  sel.value = atual;
+  const t = tempos.find((x) => x.id === atual);
+  sel.title = t ? "Resposta tipica: " + faixa(t.total) + " + a IA pensar. " + detalheVel(t) : "";
+}
+$("vel").onchange = async () => {
+  try {
+    const d = await api("/api/contato", { id: abertaId, velocidade: $("vel").value });
+    if (estado.bot) (estado.bot.velocidades = estado.bot.velocidades || {})[abertaId] = d.contato.velocidade;
+    desenharVel();
+  } catch (e) { $("aviso").textContent = "IA: " + e.message; }
+};
+
+let velSel = "normal";
+function desenharVelsModal() {
+  const box = $("c-vels");
+  box.replaceChildren(...((estado.bot || {}).tempos || []).map((t) => {
+    const b = el("button", "vel" + (t.id === velSel ? " on" : ""));
+    const txt = el("div");
+    const tit = el("div"); tit.append(el("b", "", t.rotulo), el("span", "seg", faixa(t.total) + " por resposta"));
+    txt.append(tit, el("small", "", detalheVel(t) + (t.id === "aleatoria" ? " (sorteado a cada resposta)" : "")));
+    b.append(el("span", "bola"), txt);
+    b.onclick = () => { velSel = t.id; desenharVelsModal(); };
+    return b;
+  }));
+  $("c-leitura").textContent = estado.intervalo || 8;
+}
+
+// modal de contexto
+async function abrirContexto() {
+  const c = conversas.find((x) => x.id === abertaId);
+  if (!c) return;
+  $("c-erro").textContent = "";
+  const p = (c.perfis || [])[0] || {};
+  $("c-titulo").textContent = "Contexto de @" + (p.usuario || c.titulo);
+  $("veu-ctx").classList.remove("oculto");
+  try {
+    const d = await api("/api/contato?id=" + encodeURIComponent(abertaId));
+    $("c-sub").textContent = "O que " + (d.persona || "a IA") + " sabe desta pessoa antes de responder." + (p.nome ? " Nome no perfil: " + p.nome + "." : "");
+    marcar($("c-ativo"), !!d.contato.ativo);
+    marcar($("c-origem"), !!d.contato.origem);
+    $("c-notas").value = d.contato.notas || "";
+    velSel = d.contato.velocidade || "normal";
+    desenharVelsModal();
+    const m = d.memoria;
+    $("c-mem").textContent = m ? (m.resumo || "(conversa curta: tudo cabe na janela recente, nada para resumir)") : "ainda sem memoria (e montada quando a IA e ligada)";
+    $("c-mem-info").textContent = m ? "· " + (m.total >= 200 ? "200+" : m.total) + " msgs lidas desde " + hora(m.primeira).slice(0, 5) + " · atualizada " + hora(m.atualizado) : "";
+  } catch (e) { $("c-erro").textContent = e.message; }
+}
+function fecharContexto() { $("veu-ctx").classList.add("oculto"); }
+$("btn-contexto").onclick = abrirContexto;
+$("c-x").onclick = fecharContexto; $("c-fechar").onclick = fecharContexto;
+$("veu-ctx").addEventListener("click", (e) => { if (e.target === $("veu-ctx")) fecharContexto(); });
+$("c-ativo").onclick = () => marcar($("c-ativo"), !$("c-ativo").classList.contains("on"));
+$("c-origem").onclick = () => marcar($("c-origem"), !$("c-origem").classList.contains("on"));
+$("c-salvar").onclick = async () => {
+  try {
+    const ct = await mudarContato({ ativo: $("c-ativo").classList.contains("on"), origem: $("c-origem").classList.contains("on"),
+      notas: $("c-notas").value, velocidade: velSel });
+    if (estado.bot) (estado.bot.velocidades = estado.bot.velocidades || {})[abertaId] = ct.velocidade || velSel;
+    desenharVel();
+    fecharContexto();
+  } catch (e) { $("c-erro").textContent = e.message; }
+};
+$("c-refazer").onclick = async () => {
+  try { await api("/api/memoria", { id: abertaId }); $("c-erro").textContent = "refazendo memoria (le ate 200 msgs e resume; pode levar 1 min)"; await lerEstado(); }
+  catch (e) { $("c-erro").textContent = e.message; }
+};
+
+// ---------- modal de conta ----------
+let aba = "senha";
+function abrirModal() { $("veu").classList.remove("oculto"); $("m-erro").textContent = ""; atualizarModal(); }
+function fecharModal() { $("veu").classList.add("oculto"); }
+function atualizarModal() {
+  const logado = ["online", "pausa"].includes(estado.status) && estado.usuario;
+  $("m-logado").classList.toggle("oculto", !logado);
+  $("m-entrar").classList.toggle("oculto", !!logado);
+  $("m-sair").classList.toggle("oculto", !logado);
+  $("m-ok").classList.toggle("oculto", !!logado);
+  if (logado) { $("m-user").textContent = "@" + estado.usuario; $("m-rosto").replaceWith(Object.assign(rosto(estado.usuario), { id: "m-rosto" })); }
+  const pede = estado.pede;
+  $("bloco-codigo").classList.toggle("oculto", !pede);
+  $("rot-codigo").textContent = pede === "2fa" ? "Codigo de 2 fatores (app autenticador ou SMS)" : "Codigo enviado por e-mail/SMS";
+  $("m-ok").textContent = pede ? "Confirmar codigo" : "Entrar";
+  $("m-ok").disabled = estado.status === "entrando" && !pede;
+  if (estado.status === "erro" && !$("veu").classList.contains("oculto")) $("m-erro").textContent = estado.aviso || "";
+}
+document.querySelectorAll(".aba").forEach((b) => b.onclick = () => {
+  aba = b.dataset.aba;
+  document.querySelectorAll(".aba").forEach((x) => x.classList.toggle("on", x === b));
+  $("aba-senha").classList.toggle("oculto", aba !== "senha");
+  $("aba-cookie").classList.toggle("oculto", aba !== "cookie");
+});
+$("btn-conta").onclick = abrirModal;
+$("m-x").onclick = fecharModal; $("m-fechar").onclick = fecharModal;
+$("veu").addEventListener("click", (e) => { if (e.target === $("veu")) fecharModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { fecharModal(); fecharContexto(); } });
+$("m-ok").onclick = async () => {
+  $("m-erro").textContent = "";
+  try {
+    if (estado.pede) { await api("/api/codigo", { codigo: $("f-codigo").value }); $("f-codigo").value = ""; }
+    else if (aba === "cookie") { await api("/api/login", { sessionid: $("f-cookie").value }); $("f-cookie").value = ""; }
+    else { await api("/api/login", { usuario: $("f-usuario").value, senha: $("f-senha").value }); }
+    $("m-erro").textContent = "entrando...";
+    esperarLogin();
+  } catch (e) { $("m-erro").textContent = e.message; }
+};
+async function esperarLogin() {
+  for (let i = 0; i < 90; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    await lerEstado();
+    if (estado.pede) { $("m-erro").textContent = ""; $("f-codigo").focus(); return; }
+    if (estado.status === "online") { $("f-senha").value = ""; fecharModal(); setTimeout(lerConversas, 1500); return; }
+    if (estado.status === "erro" || estado.status === "offline") { $("m-erro").textContent = estado.aviso; return; }
+  }
+}
+$("m-sair").onclick = async () => {
+  if (!confirm("Apagar a sessao salva?")) return;
+  await api("/api/sair", {}).catch(() => {});
+  conversas = []; abertaId = null; desenharLista();
+  $("corpo").classList.remove("aberta");
+  $("nada").classList.remove("oculto"); $("msgs").classList.add("oculto"); $("escrever").classList.add("oculto");
+  await lerEstado();
+};
+
+// ---------- ciclo ----------
+(async function ciclo() {
+  await lerEstado();
+  await lerConversas();
+  const ocupada = Object.keys((estado.bot || {}).ocupadas || {}).length > 0;
+  setTimeout(ciclo, ocupada ? 2500 : 5000);
+})();
+</script>
+</body>
+</html>

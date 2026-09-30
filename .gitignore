@@ -1,0 +1,27 @@
+# segredos e sessão
+env.env
+sessao/
+
+# dados privados (export do Instagram e derivados)
+meta dados/
+connections/
+media/
+persona/mapa_nomes.json
+historico.json
+visualizer e separador/dataset/categorizado/mapa_usuario_hash_ORIGINAL.csv
+
+# python
+__pycache__/
+.venv/
+
+# memória por conversa (mensagens reais)
+memoria/
+
+# fora do repositório público
+visualizer e separador/
+persona/pares.jsonl
+persona/conversa.txt
+text.txt
+persona/
+persona.env
+!persona.env.example
